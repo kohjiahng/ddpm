@@ -71,7 +71,7 @@ class DataModule(L.LightningDataModule):
         # Save time
         corrupted_files = [Path('./data/PetImages/Cat/666.jpg')]
         return file not in corrupted_files
-        
+
         # try:
         #     with Image.open(file) as pil_image:
         #         img = pil_to_tensor(pil_image.convert('RGB')) / 255
@@ -84,6 +84,7 @@ class DataModule(L.LightningDataModule):
     def setup(self, stage):
         self.train_dataset = JPGDataset(self.file_paths, self.transform, 'fit')
         self.val_dataset = JPGDataset(self.file_paths, self.transform, None)
+        self.val_batch_generator = DataLoader(self.val_dataset, batch_size=self.num_val_images, shuffle=True)
         
     def train_dataloader(self):
         loader_config = {
@@ -96,8 +97,15 @@ class DataModule(L.LightningDataModule):
         return loader
 
     def val_dataloader(self):
-        return [self.num_val_images]
-           
+        loader_config = {
+            'num_workers': 15,
+            "shuffle": True,
+            "batch_size": self.num_val_images,
+            **self.loader_config
+        }
+        loader = DataLoader(self.val_dataset, **loader_config)
+        return loader
+          
 if __name__ == '__main__':
     dm = DataModule('./data/PetImages/Cat', 1, {})
     dm.setup('fit')

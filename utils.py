@@ -1,5 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
+import logging
 # ------------ infer_type convenience function for config logging ------------ #
 def infer_type(val):
     try:
@@ -16,11 +17,14 @@ def channel_last(x):
     return torch.permute(x, (0,2,3,1))
 
 def plot_images(history, breakpoints):
+    if len(history) != len(breakpoints):
+        logging.warn('plot_images: history and breakpoints are of different lengths')
     n = len(history)
     m = len(history[0])
     fig, ax = plt.subplots(n,m,figsize=(m*8,n*8))
 
     for t_idx, (t, images) in enumerate(zip(breakpoints, history)):
+        images = torch.clamp(images, -1, 1)
         ax[t_idx,0].set_ylabel(f"T={int(t)}", visible=True)
         images = channel_last(images)
         for idx, img in enumerate(images):

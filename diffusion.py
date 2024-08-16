@@ -32,6 +32,7 @@ class DiffusionModel(L.LightningModule):
         self.sigma = np.sqrt(
             (1 - self.alpha_bar[:-1]) * self.beta[1:] / (1 - self.alpha_bar[1:])
         )
+        self.sigma = np.array([0, *self.sigma])
         
     def forward(self, x):
         eps = torch.normal(0, 1, x.shape, device=self.device)
@@ -60,11 +61,8 @@ class DiffusionModel(L.LightningModule):
         loss = sum(self.train_losses) / len(self.train_losses)
         self.log('train/loss', loss)
         self.train_losses = []
-    def validation_step(self,num_sample):
-        breakpoints = np.linspace(self.T, 0, 3)
-
+    def decode_noise(self, x, breakpoints = []):
         history = []
-        x = torch.normal(0,1,(num_sample, 3, IMG_RES, IMG_RES),device=self.device)
         for t in range(self.T,0,-1):
             if t in breakpoints:
                 history.append(x.cpu())
@@ -75,7 +73,35 @@ class DiffusionModel(L.LightningModule):
                 x = torch.normal(mu, self.sigma[t-1])
             else:
                 x = mu
-        history.append(x.cpu())
+        history.append(x.cpu())        
+        if len(history) == 1:
+            return history[0]
+        else:
+            return history
+    def validation_step(self,batch):
+        num_sample = len(batch)
+
+        breakpoints = np.linspace(self.T, 0, 3, dtype=int)
+
+        # Log generated images
+        x = torch.normal(0,1,(num_sample, 3, IMG_RES, IMG_RES),device=self.device)
+        history = self.decode_noise(x, breakpoints)
         fig = plot_images(history, breakpoints)
-        wandb.log({'images': fig})
-        return x
+        wandb.log({'Generated': fig})
+
+        # Log reconstructed images
+        
+        # Forward process
+        history = [batch.cpu()]
+        for t in range(1, self.T+1):
+            batch = torch.normal(np.sqrt(1-self.beta[t-1])*batch, np.sqrt(self.beta[t-1]))
+            if t in breakpoints and t != self.T:
+                history.append(batch.cpu())
+        # Backward process
+        history += self.decode_noise(batch, breakpoints)
+        labels = np.concatenate((breakpoints[::-1], breakpoints[1:]))
+        fig = plot_images(history, labels)
+        wandb.log({'Reconstructed': fig})
+
+            
+

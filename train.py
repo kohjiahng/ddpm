@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 import torch
 import pytorch_lightning as L
 from pytorch_lightning.loggers import WandbLogger
-
+from pytorch_lightning.callbacks import Timer
 # ---------------------------------------------------------------------------- #
 #                                     SETUP                                    #
 # ---------------------------------------------------------------------------- #
@@ -93,12 +93,18 @@ atexit.register(on_exit)
 
 # ------------------------------- DATA LOADING ------------------------------- #
 
-datamodule = DataModule(f'{args.data_dir}', num_val_images=8, batch_size=1)
+datamodule = DataModule(f'{args.data_dir}', num_val_images=8, batch_size=BATCH_SIZE)
 
 model = DiffusionModel(opt_config={'lr': LR})
 
+trainer_config = {
+    'limit_val_batches': 1,
+    'enable_checkpointing': False,
+    'logger': wandb_logger,
+    'callbacks': [Timer()]
+}
 if DEBUG:
-    trainer = L.Trainer(fast_dev_run=True, logger = wandb_logger, enable_checkpointing=False)
+    trainer = L.Trainer(fast_dev_run=True, **trainer_config)
 else:
-    trainer = L.Trainer(limit_train_batches=1000, logger = wandb_logger,enable_checkpointing=False)
+    trainer = L.Trainer(max_epochs=30, **trainer_config)
 trainer.fit(model=model, datamodule=datamodule)
