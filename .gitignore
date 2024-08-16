@@ -1,0 +1,10 @@
+__pycache__/
+train.log
+.env
+wandb/
+logs/
+lightning_logs/
+ckpts/
+artifacts/
+images/
+data/
