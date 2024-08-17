@@ -41,13 +41,6 @@ IMG_RES = config.getint('params', 'IMG_RES')
 NUM_EPOCHS = config.getint('params', 'NUM_EPOCHS')
 BATCH_SIZE = config.getint('params','BATCH_SIZE')
 LR = config.getfloat('params', 'LR')
-IMG_LOG_FREQ = config.getint('settings', 'IMG_LOG_FREQ')
-IMG_FIXED_LOG_NUM = config.getint('settings', 'IMG_FIXED_LOG_NUM')
-IMG_RANDOM_LOG_NUM = config.getint('settings', 'IMG_RANDOM_LOG_NUM')
-
-CKPT_FREQ = config.getint('settings', 'CKPT_FREQ')
-CKPT_DIR = config.get('settings', 'CKPT_DIR')
-
 
 # ------------------------------- LOGGING SETUP ------------------------------ #
 
@@ -93,7 +86,7 @@ atexit.register(on_exit)
 
 # ------------------------------- DATA LOADING ------------------------------- #
 
-datamodule = DataModule(f'{args.data_dir}', num_val_images=8, batch_size=BATCH_SIZE)
+datamodule = DataModule(f'{args.data_dir}', num_val_images=2, batch_size=BATCH_SIZE)
 
 model = DiffusionModel(opt_config={'lr': LR})
 
