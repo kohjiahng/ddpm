@@ -16,7 +16,9 @@ def channel_first(x):
 def channel_last(x):
     return torch.permute(x, (0,2,3,1))
 
-def plot_images(history, breakpoints):
+def plot_images(history, breakpoints = None):
+    if breakpoints is None:
+        breakpoints = [None] * len(history)
     if len(history) != len(breakpoints):
         logging.warn('plot_images: history and breakpoints are of different lengths')
     n = len(history)
@@ -25,7 +27,8 @@ def plot_images(history, breakpoints):
 
     for t_idx, (t, images) in enumerate(zip(breakpoints, history)):
         images = torch.clamp(images, -1, 1)
-        ax[t_idx,0].set_ylabel(f"T={int(t)}", visible=True)
+        if t:
+            ax[t_idx,0].set_ylabel(f"T={int(t)}", visible=True)
         images = channel_last(images)
         for idx, img in enumerate(images):
             ax[t_idx,idx].imshow((img+1)/2)

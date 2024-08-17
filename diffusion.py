@@ -36,9 +36,14 @@ class DiffusionModel(L.LightningModule):
         
     def forward(self, x):
         eps = torch.normal(0, 1, x.shape, device=self.device)
-        t = np.random.randint(1,self.T)
+        t = np.random.randint(1,self.T+1,size=x.shape[0])
 
-        noised_x = np.sqrt(self.alpha_bar[t-1]) * x + np.sqrt(1-self.alpha_bar[t-1]) * eps
+        x_coef = np.sqrt(self.alpha_bar[t-1])[:,np.newaxis,np.newaxis,np.newaxis]
+        eps_coef = np.sqrt(1-self.alpha_bar[t-1])[:,np.newaxis,np.newaxis,np.newaxis]
+        x_coef = torch.tensor(x_coef, dtype=torch.float, device=self.device)
+        eps_coef = torch.tensor(eps_coef, dtype=torch.float, device=self.device)
+
+        noised_x = x_coef * x + eps_coef * eps
 
         # predict the noise
         return self.net(noised_x, t), eps
@@ -60,15 +65,18 @@ class DiffusionModel(L.LightningModule):
     def on_train_epoch_end(self):
         loss = sum(self.train_losses) / len(self.train_losses)
         self.log('train/loss', loss)
+        self.log('train/RMSE', np.sqrt(loss))
         self.train_losses = []
-    def decode_noise(self, x, breakpoints = []):
+    def decode_noise(self, x, breakpoints = [], T = None):
+        if T is None:
+            T = self.T
         history = []
-        for t in range(self.T,0,-1):
+        for t in range(T,0,-1):
             if t in breakpoints:
                 history.append(x.cpu())
 
-            out = self.net(x, t)
-            mu = 1/np.sqrt(self.alpha[t-1]) * (x - (1-self.alpha[t-1]) * out /np.sqrt(1-self.alpha_bar[t-1]))
+            eps = self.net(x,torch.full((x.shape[0],), t)) 
+            mu = 1/np.sqrt(self.alpha[t-1]) * (x - (1-self.alpha[t-1]) * eps /np.sqrt(1-self.alpha_bar[t-1]))
             if t > 0:
                 x = torch.normal(mu, self.sigma[t-1])
             else:
@@ -90,17 +98,14 @@ class DiffusionModel(L.LightningModule):
         wandb.log({'Generated': fig})
 
         # Log reconstructed images
-        
-        # Forward process
         history = [batch.cpu()]
-        for t in range(1, self.T+1):
+        for t in range(1, 11):
             batch = torch.normal(np.sqrt(1-self.beta[t-1])*batch, np.sqrt(self.beta[t-1]))
-            if t in breakpoints and t != self.T:
-                history.append(batch.cpu())
+            history.append(batch.cpu())
+        history.append(batch.cpu())
         # Backward process
-        history += self.decode_noise(batch, breakpoints)
-        labels = np.concatenate((breakpoints[::-1], breakpoints[1:]))
-        fig = plot_images(history, labels)
+        history.append(self.decode_noise(batch,T=10))
+        fig = plot_images(history)
         wandb.log({'Reconstructed': fig})
 
             

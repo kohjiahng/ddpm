@@ -106,5 +106,5 @@ trainer_config = {
 if DEBUG:
     trainer = L.Trainer(fast_dev_run=True, **trainer_config)
 else:
-    trainer = L.Trainer(max_epochs=30, **trainer_config)
+    trainer = L.Trainer(max_epochs=NUM_EPOCHS, **trainer_config)
 trainer.fit(model=model, datamodule=datamodule)
