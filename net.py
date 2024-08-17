@@ -35,7 +35,7 @@ def block_upsample(in_channels, out_channels, n_blocks=2, attn=False):
 
 
 class UNet(nn.Module):
-    def __init__(self, hid_channels=64, time_dim = 256, max_t = 1000):
+    def __init__(self, hid_channels=128, time_dim = 256, max_t = 1000):
         super().__init__()
 
         self.time_encoder = TimeEncoding(time_dim, max_t)
@@ -102,3 +102,4 @@ if __name__ == '__main__':
     inp = torch.zeros((1,3,IMG_RES,IMG_RES)).cuda()
     out = net(inp, torch.zeros(1,dtype=int)+3)
     print(f"UNet output shape: {out.shape}")
+    print(f"UNet size: {sum([param.numel() for param in net.parameters() if param.requires_grad])/1000000:.3}M parameters")

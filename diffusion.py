@@ -15,10 +15,10 @@ config.read('config.ini')
 IMG_RES = config.getint('params', 'IMG_RES')
 
 class DiffusionModel(L.LightningModule):
-    def __init__(self, T=1000, optimizer=torch.optim.Adam, opt_config={}):
+    def __init__(self, T=1000, hid_channels=128, optimizer=torch.optim.Adam, opt_config={}):
         super().__init__()
         self.T = T
-        self.net = UNet()
+        self.net = UNet(hid_channels)
         self.optimizer = optimizer
         self.beta = np.linspace(1e-4, 0.02, T)
         self.alpha = 1-self.beta
