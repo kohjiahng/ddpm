@@ -78,6 +78,7 @@ class DataModule(L.LightningDataModule):
                 img = pil_to_tensor(pil_image.convert('RGB')) / 255
             
             assert img.shape[0] == 3
+            return True
         except:
             print(file)
             return False
