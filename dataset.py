@@ -69,17 +69,18 @@ class DataModule(L.LightningDataModule):
     @staticmethod
     def verify_path(file):
         # Save time
-        corrupted_files = [Path('./data/PetImages/Cat/666.jpg')]
-        return file not in corrupted_files
+        
+        # corrupted_files = [Path('./data/PetImages/Cat/666.jpg')]
+        # return file not in corrupted_files
 
-        # try:
-        #     with Image.open(file) as pil_image:
-        #         img = pil_to_tensor(pil_image.convert('RGB')) / 255
+        try:
+            with Image.open(file) as pil_image:
+                img = pil_to_tensor(pil_image.convert('RGB')) / 255
             
-        #     assert img.shape[0] == 3
-        # except:
-        #     print(file)
-        #     return False
+            assert img.shape[0] == 3
+        except:
+            print(file)
+            return False
 
     def setup(self, stage):
         self.train_dataset = JPGDataset(self.file_paths, self.transform, 'fit')
