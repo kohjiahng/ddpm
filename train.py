@@ -98,7 +98,7 @@ atexit.register(on_exit)
 
 # ------------------------------- DATA LOADING ------------------------------- #
 
-datamodule = DataModule(f'{args.data_dir}', num_val_images=2, batch_size=BATCH_SIZE)
+datamodule = DataModule(f'{args.data_dir}', batch_size=BATCH_SIZE)
 
 def create_net() -> torch.nn.Module:
     """Create NN to model noise
@@ -112,7 +112,6 @@ model = DiffusionModel(create_net, opt_config={'lr': LR})
 # model = DiffusionModel.load_from_checkpoint('./artifacts/model-mc7dmdff:v1/model.ckpt')
 checkpoint_callback = ModelCheckpoint(save_weights_only=True, every_n_epochs=10, save_last=True)
 trainer_config = {
-    'limit_val_batches': 1,
     'logger': wandb_logger,
     # 'check_val_every_n_epoch': 100,
     'callbacks': [Timer(), checkpoint_callback]

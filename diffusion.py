@@ -46,6 +46,7 @@ class DiffusionModel(L.LightningModule):
         self.log_config = {
             'n_unconditional': 3,
             'freq_unconditional': 100,
+            'n_reconstructed': 3,
             't_reconstructed': 100,
             'freq_loss_by_time': 100
         }
@@ -288,12 +289,14 @@ class DiffusionModel(L.LightningModule):
             batch (Tensor): 4D tensor of batched images
         """
         # Log reconstructed images (noise partially then backward)
-
+        n_recon = self.log_config['n_reconstructed']
         t_recon = self.log_config['t_reconstructed'] #100 # step to noise until
-        noised_batch, _ = self.forward_sample(batch, t_recon)
+        truncated_batch = batch[:n_recon,:,:,:]
+
+        noised_batch, _ = self.forward_sample(truncated_batch, t_recon)
         recon_batch = self.decode_noise(noised_batch,cur_timestep=t_recon)
         recon_fig = plot_images(
-            [batch.cpu(), noised_batch.cpu(), recon_batch.cpu()]
+            [truncated_batch.cpu(), noised_batch.cpu(), recon_batch.cpu()]
         )
         wandb.log({'val/reconstructed': recon_fig})
         plt.close(recon_fig)

@@ -82,12 +82,11 @@ class MNIST(Dataset):
 class DataModule(L.LightningDataModule):
     """DataModule for diffusion model training
     """
-    def __init__(self, root_dir: str | Path, batch_size: int, num_val_images: int, loader_config: dict | None = None) -> None:
+    def __init__(self, root_dir: str | Path, batch_size: int, loader_config: dict | None = None) -> None:
         super().__init__()
         self.root_dir = Path(root_dir)
         self.loader_config = (loader_config if loader_config is not None else {})
         self.batch_size = batch_size
-        self.num_val_images = num_val_images
 
         all_file_paths = list(self.root_dir.glob('*.jpg'))
         self.file_paths = list(filter(DataModule.verify_path, all_file_paths))
@@ -147,7 +146,7 @@ class DataModule(L.LightningDataModule):
         loader_config = {
             'num_workers': 15,
             "shuffle": True,
-            "batch_size": self.num_val_images,
+            "batch_size": self.batch_size,
             **self.loader_config
         }
         loader = DataLoader(self.val_dataset, **loader_config)
