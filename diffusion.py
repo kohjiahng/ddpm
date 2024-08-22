@@ -54,7 +54,7 @@ class DiffusionModel(L.LightningModule):
 
         freq = self.log_config['freq_loss_by_time']
         self.val_loss_by_time_metrics = {
-            t: Mean() for t in np.arange(self.max_timesteps+1, step=freq, dtype=int)
+            max(t, 1): Mean() for t in np.arange(self.max_timesteps+1, step=freq, dtype=int)
         }
 
 
@@ -274,11 +274,13 @@ class DiffusionModel(L.LightningModule):
         generated_images = self.generate_images(n, timesteps)
         gen_fig = plot_images(generated_images)
         wandb.log({'generated': gen_fig})
+        plt.close(gen_fig)
 
         # Log progressive generation
         prog_gen = self.progressive_generation(n, timesteps)
         prog_gen_fig = plot_images(prog_gen)
-        wandb.log({'val/progressive': prog_gen_fig})
+        wandb.log({'progressive': prog_gen_fig})
+        plt.close(prog_gen_fig)
     def on_first_validation_batch_start(self, batch: Tensor) -> None:
         """Called on the first validation batch
 
@@ -294,6 +296,7 @@ class DiffusionModel(L.LightningModule):
             [batch.cpu(), noised_batch.cpu(), recon_batch.cpu()]
         )
         wandb.log({'val/reconstructed': recon_fig})
+        plt.close(recon_fig)
     def on_validation_batch_start(self, batch: Tensor, batch_idx: int) -> None:
         """log reconstructed images for first validation batch (pytorch hook)
 
@@ -337,6 +340,7 @@ class DiffusionModel(L.LightningModule):
         fig = plt.figure()
         plt.plot(timesteps, val_losses_by_time)
         wandb.log({'val/losses_by_time': fig})
+        plt.close(fig)
 
         self.val_loss_metric.clear()
         for metric in self.val_loss_by_time_metrics.values():
