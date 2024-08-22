@@ -1,19 +1,22 @@
-import logging
+"""Train diffusion model
+"""
 from configparser import ConfigParser
-import wandb
-from utils import infer_type
-import atexit
 import os
-from diffusion import DiffusionModel
-from net import UNet
+import logging
 import sys
+import atexit
 import argparse
-from dataset import DataModule
-from torch.utils.data import DataLoader
-import torch
+import random
+import numpy as np
 import pytorch_lightning as L
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import Timer
+from pytorch_lightning.callbacks import Timer, ModelCheckpoint
+import torch
+import wandb
+from utils import infer_type
+from diffusion import DiffusionModel
+from dataset import DataModule
+from net2 import UNet
 # ---------------------------------------------------------------------------- #
 #                                     SETUP                                    #
 # ---------------------------------------------------------------------------- #
@@ -28,10 +31,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument('data_dir')
 parser.add_argument('--verbose','-v',action='store_true')
 parser.add_argument('--debug', '-d',action='store_true')
+parser.add_argument('--disable_wandb', '-dw',action='store_true')
 args = parser.parse_args()
 
 VERBOSE = args.verbose
 DEBUG = args.debug
+DISABLE_WANDB=  args.disable_wandb
 WANDB_PROJECT_NAME = config.get('settings','WANDB_PROJECT_NAME')
 WANDB_USER = config.get('settings', 'WANDB_USER')
 LOG_FILE_NAME = config.get('settings', 'LOG_FILE_NAME')
@@ -43,12 +48,14 @@ BATCH_SIZE = config.getint('params','BATCH_SIZE')
 LR = config.getfloat('params', 'LR')
 
 # ------------------------------- LOGGING SETUP ------------------------------ #
+if DISABLE_WANDB:
+    os.environ["WANDB_DISABLED"] = "true"
 
 # Creating log folder and file if not exist
 if not os.path.isdir('./logs'):
     os.makedirs('./logs')
 if not os.path.exists(LOG_FILE):
-    with open(LOG_FILE, 'w') as file:
+    with open(LOG_FILE, 'w', encoding='utf8') as file:
         pass
 
 logging.basicConfig(filename=LOG_FILE,
@@ -74,12 +81,17 @@ wandb.init(
 )
 wandb_logger = WandbLogger(log_model="all")
 
+# ----------------------------------- SEED ----------------------------------- #
+SEED = 42
+torch.manual_seed(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
 # ---------------------------------- CLEANUP --------------------------------- #
-def on_exit():
+def on_exit() -> None:
+    """Save log file
+    """
     # -------------------------------- Saving logs ------------------------------- #
-    if not DEBUG:
-        wandb.save(LOG_FILE)
-
+    wandb.save(LOG_FILE)
     logging.info('Finished Training!')
 
 atexit.register(on_exit)
@@ -88,13 +100,22 @@ atexit.register(on_exit)
 
 datamodule = DataModule(f'{args.data_dir}', num_val_images=2, batch_size=BATCH_SIZE)
 
-model = DiffusionModel(opt_config={'lr': LR})
+def create_net() -> torch.nn.Module:
+    """Create NN to model noise
 
+    Returns:
+        nn.Module: NN
+    """
+    return UNet(hid_channels=64)
+
+model = DiffusionModel(create_net, opt_config={'lr': LR})
+# model = DiffusionModel.load_from_checkpoint('./artifacts/model-mc7dmdff:v1/model.ckpt')
+checkpoint_callback = ModelCheckpoint(save_weights_only=True, every_n_epochs=10, save_last=True)
 trainer_config = {
     'limit_val_batches': 1,
-    'enable_checkpointing': False,
     'logger': wandb_logger,
-    'callbacks': [Timer()]
+    # 'check_val_every_n_epoch': 100,
+    'callbacks': [Timer(), checkpoint_callback]
 }
 if DEBUG:
     trainer = L.Trainer(fast_dev_run=True, **trainer_config)
