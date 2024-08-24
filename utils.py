@@ -52,7 +52,8 @@ def plot_images(images: list[Tensor]) -> Figure:
     """Plot a batch of images over time
 
     Args:
-        images (list[Tensor]): List of 4D tensors of batched images (channel-first). Each image must be of equal shape.
+        images (list[Tensor]): List of 4D tensors of batched images (channel-first).
+                               Each image must be of equal shape.
 
     Returns:
         Figure: plotted images with x axis being batch dimension and y axis time
@@ -132,6 +133,7 @@ class MeanSeries:
         filtered_index, _ = np.nonzero(self.cnt)
         return filtered_index, filtered_means
 
+# pylint: disable=unused-argument
 class EpochTimer(L.Callback):
     """A callback that logs the epoch execution time for train and val."""
     def __init__(self):
@@ -147,7 +149,7 @@ class EpochTimer(L.Callback):
             self.end.record()
             torch.cuda.synchronize()
             time = self.start.elapsed_time(self.end) / 1000
-            trainer.logger.log('train/epoch_time', time)
+            trainer.logger.log_metrics('train/epoch_time', time)
     def on_validation_epoch_start(self, trainer: L.Trainer, *args, **kwargs):
         self.start.record()
 
@@ -158,4 +160,4 @@ class EpochTimer(L.Callback):
             torch.cuda.synchronize()
 
             time = self.start.elapsed_time(self.end) / 1000
-            trainer.logger.log('val/epoch_time', time)
+            trainer.logger.log_metrics('val/epoch_time', time)

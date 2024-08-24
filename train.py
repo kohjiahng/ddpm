@@ -109,7 +109,6 @@ def create_net() -> torch.nn.Module:
     return UNet(hid_channels=64)
 
 model = DiffusionModel(create_net, lr=LR)
-model = torch.compile(model)
 wandb.watch(model.net)
 # model = DiffusionModel.load_from_checkpoint('./artifacts/model-mc7dmdff:v1/model.ckpt')
 checkpoint_callback = ModelCheckpoint(save_weights_only=True, every_n_epochs=10, save_last=True)
