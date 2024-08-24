@@ -1,10 +1,13 @@
 """Utility functions
 """
 
+import statistics
+import numpy as np
 import torch
 from torch import Tensor
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+import pytorch_lightning as L
 
 # ------------ infer_type convenience function for config logging ------------ #
 def infer_type(val: str) -> int | float | str:
@@ -92,3 +95,67 @@ class Mean:
         """
         self.sum = 0
         self.cnt = 0
+
+class MeanSeries:
+    """Helper class to accumulate a series of means
+    """
+
+    def __init__(self, max_index: int) -> None:
+        self.max_index = max_index
+        self.sum = np.zeros(self.max_index + 1)
+        self.cnt = np.zeros(self.max_index + 1, dtype=int)
+
+    def __call__(self, index: int, val: float) -> None:
+        """Update an entry to the series
+
+        Args:
+            index (int): index of mean
+            val (float): value to update
+
+        Raises:
+            ValueError: If invalid index
+        """
+        if index < 0 or index > self.max_index:
+            raise ValueError("index passed to MeanSeries out of range")
+
+        self.sum[index] += val
+        self.cnt[index] += 1
+
+    def result(self) -> tuple[np.ndarray[int], np.ndarray[float]]:
+        """Get list of means, filtered by existence
+
+        Returns:
+            tuple[list[int], list[float]]: indices with at least one entry and their means
+        """
+        means = self.sum / self.cnt
+        filtered_means = means[self.cnt > 0]
+        filtered_index, _ = np.nonzero(self.cnt)
+        return filtered_index, filtered_means
+
+class EpochTimer(L.Callback):
+    """A callback that logs the epoch execution time for train and val."""
+    def __init__(self):
+        self.start = torch.cuda.Event(enable_timing=True)
+        self.end = torch.cuda.Event(enable_timing=True)
+
+    def on_train_epoch_start(self, trainer: L.Trainer, *args, **kwargs):
+        self.start.record()
+
+    def on_train_epoch_end(self, trainer: L.Trainer, *args, **kwargs):
+        # Exclude the first iteration to let the model warm up
+        if trainer.global_step > 1:
+            self.end.record()
+            torch.cuda.synchronize()
+            time = self.start.elapsed_time(self.end) / 1000
+            trainer.logger.log('train/epoch_time', time)
+    def on_validation_epoch_start(self, trainer: L.Trainer, *args, **kwargs):
+        self.start.record()
+
+    def on_validation_epoch_end(self, trainer: L.Trainer, *args, **kwargs):
+        # Exclude the first iteration to let the model warm up
+        if trainer.global_step > 1:
+            self.end.record()
+            torch.cuda.synchronize()
+
+            time = self.start.elapsed_time(self.end) / 1000
+            trainer.logger.log('val/epoch_time', time)

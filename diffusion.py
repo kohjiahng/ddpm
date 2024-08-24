@@ -29,15 +29,15 @@ class DiffusionModel(L.LightningModule):
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, create_net: Callable[[], nn.Module], T: int = 1000,
+    def __init__(self, create_net: Callable[[], nn.Module],
+                 lr: float,
                  optimizer: torch.optim.Optimizer = torch.optim.Adam,
-                 opt_config: dict | None = None) -> None:
+                 T: int = 1000) -> None:
         super().__init__()
         self.max_timesteps = T
         self.net = create_net()
-        # UNet(hid_channels, max_t = T)
+        self.lr = lr
         self.optimizer = optimizer
-        self.opt_config = (opt_config if opt_config is not None else {})
         self.mse_loss = nn.MSELoss()
 
         self.example_input_array = Tensor(1, 3, IMG_RES, IMG_RES) # for lightning test passes
@@ -64,7 +64,6 @@ class DiffusionModel(L.LightningModule):
             torch.zeros((1,3,IMG_RES,IMG_RES), device=self.device),
             torch.ones(1, dtype=int, device='cpu') # array of indexes must be on cpu
         )
-        wandb.watch(self.net)
 
         # ----------------------------- Diffusion params ----------------------------- #
         self.beta = np.linspace(1e-4, 0.02, self.max_timesteps) # linear schedule
@@ -82,7 +81,7 @@ class DiffusionModel(L.LightningModule):
         Returns:
             torch.optim.Optimizer: Optimizer for training
         """
-        return self.optimizer(self.net.parameters(), **self.opt_config)
+        return self.optimizer(self.net.parameters(), lr=self.lr)
 
     def forward_sample(self, x: Tensor,
                        t: int | IntTensor | np.ndarray[int]) -> tuple[Tensor, Tensor]:
@@ -353,7 +352,7 @@ if __name__ == '__main__':
     from dataset import DataModule
     from net2 import UNet
     torch.random.manual_seed(0)
-    model = DiffusionModel(UNet)
+    model = DiffusionModel(UNet, 0.001)
     dm = DataModule('./data/PetImages/Cat', 1, 1)
     dm.setup('fit')
     dl = dm.train_dataloader()

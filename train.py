@@ -10,10 +10,10 @@ import random
 import numpy as np
 import pytorch_lightning as L
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import Timer, ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint
 import torch
 import wandb
-from utils import infer_type
+from utils import infer_type, EpochTimer
 from diffusion import DiffusionModel
 from dataset import DataModule
 from net2 import UNet
@@ -108,13 +108,15 @@ def create_net() -> torch.nn.Module:
     """
     return UNet(hid_channels=64)
 
-model = DiffusionModel(create_net, opt_config={'lr': LR})
+model = DiffusionModel(create_net, lr=LR)
+model = torch.compile(model)
+wandb.watch(model.net)
 # model = DiffusionModel.load_from_checkpoint('./artifacts/model-mc7dmdff:v1/model.ckpt')
 checkpoint_callback = ModelCheckpoint(save_weights_only=True, every_n_epochs=10, save_last=True)
 trainer_config = {
     'logger': wandb_logger,
     # 'check_val_every_n_epoch': 100,
-    'callbacks': [Timer(), checkpoint_callback]
+    'callbacks': [EpochTimer(), checkpoint_callback]
 }
 if DEBUG:
     trainer = L.Trainer(fast_dev_run=True, **trainer_config)

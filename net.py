@@ -83,9 +83,9 @@ class UNet(nn.Module):
         ) # 64*256*256
         self.downsample = nn.Sequential(
             *block_downsample(hid_channels, hid_channels), # 128*128*128
-            *block_downsample(hid_channels, hid_channels*2), # 256*64*64
-            *block_downsample(hid_channels*2, hid_channels*4), # 512*32*32
-            *block_downsample(hid_channels*4, hid_channels*8, attn=True), # 1024*16*16
+            *block_downsample(hid_channels, hid_channels), # 256*64*64
+            *block_downsample(hid_channels, hid_channels), # 512*32*32
+            *block_downsample(hid_channels, hid_channels, attn=True), # 1024*16*16
         )
 
         # self.downsample = [
@@ -96,14 +96,14 @@ class UNet(nn.Module):
         #     block_downsample_pair(hid_channels*16, hid_channels*32, attn=True), # 2048*8*8
         # ]
         self.middle = nn.ModuleList([
-            ResAttentionBlock(hid_channels*8, attn=True),
-            ResAttentionBlock(hid_channels*8, attn=True),
+            ResAttentionBlock(hid_channels, attn=True),
+            ResAttentionBlock(hid_channels, attn=True),
         ])
 
         self.upsample = nn.Sequential(
-            *block_upsample(hid_channels*16, hid_channels*4, attn=True), # 512*32*32
-            *block_upsample(hid_channels*8, hid_channels*2), # 256*64*64
-            *block_upsample(hid_channels*4, hid_channels), # 128*128*128
+            *block_upsample(hid_channels*2, hid_channels, attn=True), # 512*32*32
+            *block_upsample(hid_channels*2, hid_channels), # 256*64*64
+            *block_upsample(hid_channels*2, hid_channels), # 128*128*128
             *block_upsample(hid_channels*2, hid_channels), # 64*256*256
         )
         self.feature_block = nn.Conv2d(hid_channels, 3, kernel_size=(1,1))
@@ -127,13 +127,14 @@ class UNet(nn.Module):
                 x = block(x, temb)
             else:
                 x = block(x)
-            skips.append(x)
+            # skips.append(x)
 
         for block in self.middle:
             x = block(x, temb)
         skips = reversed(skips)
-        for block, skip in zip(self.upsample, skips):
-            x = torch.cat([x, skip], dim = 1)
+        # for block, skip in zip(self.upsample, skips):
+        for block in self.upsample:
+            x = torch.cat([x, x], dim = 1)
             if isinstance(block, ResAttentionBlock):
                 x = block(x, temb)
             else:
@@ -149,3 +150,5 @@ if __name__ == '__main__':
     size = sum([param.numel() for param in net.parameters() if param.requires_grad])
     print(f"UNet output shape: {out.shape}")
     print(f"UNet size: {size/1e6:.3}M parameters")
+    print(f"Memory usage for one image: {torch.cuda.max_memory_allocated()/1e9:.3}GB")
+    print(net)

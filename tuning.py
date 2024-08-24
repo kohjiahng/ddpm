@@ -1,5 +1,6 @@
 """Tune diffusion model (find optimal batch size/lr)
 """
+import os
 from configparser import ConfigParser
 import logging
 import sys
@@ -13,6 +14,7 @@ import torch
 from diffusion import DiffusionModel
 from dataset import DataModule
 from net2 import UNet
+import wandb
 # ---------------------------------------------------------------------------- #
 #                                     SETUP                                    #
 # ---------------------------------------------------------------------------- #
@@ -29,7 +31,7 @@ parser.add_argument('--verbose','-v',action='store_true')
 args = parser.parse_args()
 
 VERBOSE = args.verbose
-
+WANDB_PROJECT_NAME = config.get('settings', 'WANDB_PROJECT_NAME')
 IMG_RES = config.getint('params', 'IMG_RES')
 NUM_EPOCHS = config.getint('params', 'NUM_EPOCHS')
 BATCH_SIZE = config.getint('params','BATCH_SIZE')
@@ -42,8 +44,8 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 if VERBOSE:
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-
-
+os.environ["WANDB_DISABLED"] = "true"
+wandb.init(project=WANDB_PROJECT_NAME)
 # ----------------------------------- SEED ----------------------------------- #
 SEED = 42
 torch.manual_seed(SEED)
@@ -52,7 +54,7 @@ np.random.seed(SEED)
 
 # ------------------------------- DATA LOADING ------------------------------- #
 
-datamodule = DataModule(f'{args.data_dir}', num_val_images=2, batch_size=BATCH_SIZE)
+datamodule = DataModule(f'{args.data_dir}', batch_size=BATCH_SIZE)
 
 def create_net() -> torch.nn.Module:
     """Create NN to model noise
@@ -62,7 +64,7 @@ def create_net() -> torch.nn.Module:
     """
     return UNet(hid_channels=64)
 
-model = DiffusionModel(create_net, opt_config={'lr': LR})
+model = torch.compile(DiffusionModel(create_net, lr=LR))
 checkpoint_callback = ModelCheckpoint(save_weights_only=True, every_n_epochs=10, save_last=True)
 trainer_config = {
     'limit_val_batches': 1,
@@ -71,4 +73,5 @@ trainer_config = {
 }
 trainer = L.Trainer(max_epochs=NUM_EPOCHS, **trainer_config)
 tuner = Tuner(trainer)
+tuner.lr_find(model, datamodule=datamodule)
 tuner.scale_batch_size(model, datamodule=datamodule, mode='binsearch')

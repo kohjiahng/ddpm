@@ -122,7 +122,11 @@ class MLP(nn.Module):
 
         return self.lin3(x).reshape((-1, 3,28,28))
 if __name__ == '__main__':
-    gen = UNet().cuda()
-    inp = torch.zeros((2, 3, IMG_RES, IMG_RES)).cuda()
-    out = gen(inp, torch.tensor([1,2]))
+    net = UNet().cuda()
+    inp = torch.zeros((1, 3, IMG_RES, IMG_RES)).cuda()
+    out = net(inp, torch.tensor([1,2]))
+    size = sum([param.numel() for param in net.parameters() if param.requires_grad])
     print(f"UNet output shape: {out.shape}")
+    print(f"UNet size: {size/1e6:.3}M parameters")
+    print(f"Memory usage for one image: {torch.cuda.max_memory_allocated()/1e9:.3}GB")
+    print(net)

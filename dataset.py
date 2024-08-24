@@ -83,6 +83,16 @@ class DataModule(L.LightningDataModule):
     """DataModule for diffusion model training
     """
     def __init__(self, root_dir: str | Path, batch_size: int, loader_config: dict | None = None) -> None:
+        """
+
+        Args:
+            root_dir (str | Path): root folder of images
+            batch_size (int): batch size
+            loader_config (dict | None, optional): Configuration parameters for loader. Defaults to None.
+
+        Raises:
+            ValueError: If no valid JPG images are found in the folder
+        """
         super().__init__()
         self.root_dir = Path(root_dir)
         self.loader_config = (loader_config if loader_config is not None else {})

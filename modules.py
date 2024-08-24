@@ -62,9 +62,9 @@ class MultiheadSelfAttention(nn.MultiheadAttention):
 class AttentionBlock(nn.Module):
     """Pixel-wise self attention followed by instancenorm and silu
     """
-    def __init__(self, channels: int, dim: int) -> None:
+    def __init__(self, channels: int) -> None:
         super().__init__()
-        self.attn = MultiheadSelfAttention(embed_dim=channels, num_heads=channels, batch_first=True)
+        self.attn = MultiheadSelfAttention(embed_dim=channels, num_heads=1, batch_first=True)
 
         self.norm = nn.Sequential(
             nn.InstanceNorm2d(channels,affine=True),
@@ -94,21 +94,20 @@ class ResAttentionBlock(nn.Module):
     """ResidualBlock with attention
     """
     def __init__(self, in_channels: int, out_channels: int | None = None,
-                 attn: bool = False, attn_dim: int = 16) -> None:
+                 attn: bool = False) -> None:
         """
 
         Args:
             in_channels (int): number of input channels
             out_channels (int | None, optional): number of output channels. Defaults to None.
             attn (bool, optional): whether to include attention block. Defaults to False.
-            attn_dim (int, optional): projection dimension in attention. Defaults to 16.
         """
         super().__init__()
         self.resblock = ResBlock(in_channels)
         self.attn = attn
         self.out_channels = out_channels
         if attn:
-            self.attnblock = AttentionBlock(in_channels, attn_dim)
+            self.attnblock = AttentionBlock(in_channels)
         if out_channels is not None:
             self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=(1,1))
 
